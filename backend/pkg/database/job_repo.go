@@ -5,29 +5,27 @@ import (
 	"database/sql"
 	"encoding/json"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type JobRepo struct {
-	DB *sqlx.DB
+	DB *sql.DB
 }
 
-func NewJobRepo(db *sqlx.DB) *JobRepo {
+func NewJobRepo(db *sql.DB) *JobRepo {
 	return &JobRepo{DB: db}
 }
 
 type Job struct {
-	ID           int            `db:"id"`
-	Type         string         `db:"type"`
-	Payload      json.RawMessage `db:"payload"`
-	Status       string         `db:"status"`
-	Priority     int            `db:"priority"`
-	CreatedAt    time.Time      `db:"created_at"`
-	StartedAt    *time.Time     `db:"started_at"`
-	FinishedAt   *time.Time     `db:"finished_at"`
-	ErrorMessage sql.NullString `db:"error_message"`
-	WorkerID     sql.NullString `db:"worker_id"`
+	ID           int
+	Type         string
+	Payload      json.RawMessage
+	Status       string
+	Priority     int
+	CreatedAt    time.Time
+	StartedAt    *time.Time
+	FinishedAt   *time.Time
+	ErrorMessage sql.NullString
+	WorkerID     sql.NullString
 }
 
 func (r *JobRepo) Enqueue(ctx context.Context, jobType string, payload []byte, priority int) (int, error) {
@@ -56,7 +54,18 @@ func (r *JobRepo) Dequeue(ctx context.Context, workerID string) (*Job, error) {
 		RETURNING id, type, payload, status, priority, created_at, started_at, finished_at, error_message, worker_id
 	`
 	var job Job
-	err := r.DB.GetContext(ctx, &job, query, workerID)
+	err := r.DB.QueryRowContext(ctx, query, workerID).Scan(
+		&job.ID,
+		&job.Type,
+		&job.Payload,
+		&job.Status,
+		&job.Priority,
+		&job.CreatedAt,
+		&job.StartedAt,
+		&job.FinishedAt,
+		&job.ErrorMessage,
+		&job.WorkerID,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // No pending jobs
