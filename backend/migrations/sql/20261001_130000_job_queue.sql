@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS pentagi_jobs (
     id SERIAL PRIMARY KEY,
     type VARCHAR(50) NOT NULL,
