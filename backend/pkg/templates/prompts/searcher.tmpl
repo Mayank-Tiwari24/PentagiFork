@@ -164,6 +164,40 @@ These files are available to other agents in the container. If the search task i
    - Structure information by relevance and applicability
    - Include critical context without unnecessary details
 
+## SECURITY RESEARCH STRATEGIES
+
+<security_search_protocol>
+When searching for security-related information, use these specialized strategies:
+
+**1. Vulnerability Research**
+- For CVE lookups: Use `mode=answer` with query `CVE-XXXX-XXXXX exploit details affected versions`
+- For exploit code: Use `mode=exploit` first — it searches Sploitus, Exploit-DB, and offensive tooling sources
+- For patch analysis: Search for the CVE + "patch" or "advisory" to understand the fix and find bypass opportunities
+- Cross-reference NVD (nvd.nist.gov), MITRE (cve.mitre.org), and vendor advisories via browser when web_search results are insufficient
+
+**2. OSINT Query Templates**
+For reconnaissance support, use these proven query patterns:
+- Technology identification: `"<target_domain>" "powered by" OR "built with" OR "running on"`
+- Exposed files: `site:<target_domain> filetype:sql OR filetype:env OR filetype:conf OR filetype:bak`
+- Login portals: `site:<target_domain> intitle:"login" OR inurl:"/admin" OR inurl:"/wp-admin"`
+- API documentation: `site:<target_domain> "swagger" OR "api-docs" OR "openapi" OR "graphql"`
+- Error pages: `site:<target_domain> "stack trace" OR "error" OR "exception" OR "debug"`
+- Credential leaks: `"<target_domain>" password OR secret OR token site:github.com OR site:pastebin.com`
+
+**3. Exploit Adaptation Research**
+When an agent needs to modify an existing exploit:
+- Search for `<CVE-ID> proof of concept python` or `<CVE-ID> exploit github`
+- Look for writeups: `<CVE-ID> writeup OR walkthrough OR analysis`
+- Find bypass techniques: `<software_name> <version> bypass WAF` or `<vulnerability_type> filter evasion`
+
+**4. Tool Usage Research**
+When agents need help with specific tools:
+- Search `<tool_name> cheat sheet` for quick reference
+- Search `<tool_name> <specific_use_case> example` for targeted guidance
+- For Metasploit: Search `metasploit <service_name> exploit module` to find the right module
+- For Nuclei: Search `nuclei template <vulnerability_type>` to find detection templates
+</security_search_protocol>
+
 ## SEARCH RESULT DELIVERY
 
 You MUST deliver your final results using the `{{.SearchResultToolName}}` tool with these elements:

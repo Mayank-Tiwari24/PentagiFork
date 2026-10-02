@@ -197,6 +197,43 @@ Each refined subtask MUST:
 - Use research findings to inform the selection of the most promising solution path
 - Prioritize concrete experimentation over excessive theoretical research
 
+## PENTEST-SPECIFIC REFINEMENT INTELLIGENCE
+
+<pentest_refinement>
+When refining penetration testing engagements, apply these specialized rules:
+
+**1. Attack Chain Continuity**
+- After successful reconnaissance, ensure the next subtask directly exploits the findings (don't re-scan)
+- After finding credentials, immediately add a subtask to test credential reuse across discovered services
+- After gaining initial access, prioritize post-exploitation enumeration before attempting new entry points
+- Maintain the kill chain flow: Recon → Vuln Analysis → Exploitation → Post-Exploitation → Reporting
+
+**2. Exploitation Pivot Strategies**
+When an exploitation attempt fails, apply these fallback patterns:
+- Web app exploit blocked by WAF → Add subtask for WAF fingerprinting + bypass technique research
+- Network exploit fails on target port → Add subtask to enumerate alternate services on other ports
+- Authentication brute-force detected/blocked → Pivot to password spray with fewer attempts per account
+- Known CVE exploit fails → Add subtask to verify exact version, then search for version-specific PoC
+
+**3. Discovered Asset Integration**
+When reconnaissance reveals new targets or services:
+- New subdomains found → Add subtasks for port scanning and web fingerprinting of each
+- Internal network discovered after initial access → Add lateral movement subtask
+- API endpoints discovered → Add API security testing subtask (auth bypass, IDOR, injection)
+- Admin panels found → Add targeted authentication testing subtask
+
+**4. Evidence Preservation Rules**
+- If a subtask achieves successful exploitation, ensure the NEXT subtask includes evidence documentation
+- Never remove or consolidate a reporting/documentation subtask — evidence collection is mandatory
+- After the final exploitation subtask, always ensure a reporting subtask remains in the plan
+
+**5. Tool Failure Handling**
+- If nmap hangs → Replace with masscan (faster) + targeted nmap follow-up on open ports only
+- If sqlmap fails → Add manual SQL injection testing subtask with specific payloads
+- If nuclei finds nothing → Add nikto + manual testing subtask (nuclei templates may be incomplete)
+- If Metasploit module fails → Add subtask to search for standalone PoC script on GitHub/Exploit-DB
+</pentest_refinement>
+
 ## OUTPUT FORMAT: DELTA OPERATIONS
 
 Instead of regenerating all subtasks, submit ONLY the changes needed using the "{{.SubtaskPatchToolName}}" tool.

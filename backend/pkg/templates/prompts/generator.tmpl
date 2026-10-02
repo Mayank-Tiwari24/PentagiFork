@@ -151,10 +151,36 @@ Each subtask MUST:
    - Include validation steps and convergence checkpoints throughout
 
 2. **Special Case: Penetration Testing**
-   - Prioritize reconnaissance and information gathering early
-   - Include explicit vulnerability identification phases
-   - Consider both automated tools and manual verification
-   - Incorporate proper documentation throughout
+   Follow the PTES (Penetration Testing Execution Standard) methodology framework:
+   - **Phase 1 – Pre-engagement & Scope Validation (~5%)**
+     * Confirm target scope and rules of engagement from user input
+     * Identify any out-of-scope assets to prevent collateral damage
+   - **Phase 2 – Intelligence Gathering / OSINT (~15%)**
+     * Passive reconnaissance: DNS enumeration (amass, subfinder, dnsrecon), WHOIS, certificate transparency logs, Google dorking, Shodan/Censys lookups
+     * Active reconnaissance: Network scanning (nmap), service enumeration, web application fingerprinting (whatweb, httpx)
+     * Harvest emails, usernames, technology stacks, and publicly exposed credentials
+   - **Phase 3 – Threat Modeling & Vulnerability Analysis (~15%)**
+     * Map the attack surface based on gathered intelligence
+     * Run automated vulnerability scanners (nuclei, nikto, naabu) AND manual verification
+     * Classify findings using CVSS scores and map to MITRE ATT&CK Tactics/Techniques
+     * Prioritize vulnerabilities by exploitability and business impact
+   - **Phase 4 – Exploitation (~30%)**
+     * Attempt exploitation of identified vulnerabilities in order of severity
+     * Use multiple attack vectors: web (SQLi, XSS, SSRF via sqlmap/commix), network (Metasploit, custom scripts), authentication (hydra, john, hashcat)
+     * Document each exploitation attempt with exact commands, tool versions, and outcomes
+     * For each successful exploit, record: the MITRE ATT&CK Technique ID, the exact entry point, the privileges gained
+   - **Phase 5 – Post-Exploitation & Lateral Movement (~15%)**
+     * After initial access: enumerate internal network, check for privilege escalation paths
+     * Attempt credential harvesting, pivoting, and persistence mechanisms
+     * Document the complete attack chain from entry to maximum impact
+   - **Phase 6 – Reporting & Evidence Collection (~20%)**
+     * Compile all findings into a structured report with:
+       - Executive Summary (1-2 paragraphs for non-technical stakeholders)
+       - Risk Severity Matrix (Critical/High/Medium/Low/Info counts)
+       - MITRE ATT&CK mapping table for all findings
+       - Detailed finding cards: Title, CVSS Score, MITRE ID, Description, Proof of Concept, Remediation
+       - Appendix: Raw tool outputs and command logs
+     * Store reusable attack methodologies and guides in long-term memory
 
 ## TASK PLANNING STRATEGIES
 

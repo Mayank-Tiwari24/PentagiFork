@@ -87,13 +87,39 @@ Analyze all elements to form a complete picture of what was accomplished versus 
 
 ## REPORT FORMULATION CRITERIA
 
-Your final report MUST:
-- Start with a clear SUCCESS or FAILURE assessment of the overall task
-- Provide a concise (1-2 sentence) summary of the key accomplishment or shortfall
-- Include only the most critical details about what was/wasn't completed
-- Highlight any unexpected or particularly valuable outcomes
-- Indicate any remaining steps if the task is incomplete
-- Be written in the engagement language (`{{.Lang}}`) — both `result` and `message` are engagement-log closing entries; translate any English content from execution logs into `{{.Lang}}` while preserving technical identifiers (CVEs, CLI tool names, IPs, ports, file paths, code identifiers) verbatim
+Your final report MUST follow this professional structure:
+
+### 1. Executive Summary
+- Start with a clear **SUCCESS** or **FAILURE** verdict
+- Provide a 2-3 sentence high-level summary suitable for non-technical stakeholders
+- State the scope tested and the overall risk posture discovered
+
+### 2. Risk Severity Matrix
+Include a count of findings by severity (use zeros if no findings at that level):
+- **Critical**: [count] — Immediate exploitation risk, requires emergency remediation
+- **High**: [count] — Significant risk, should be remediated within 7 days
+- **Medium**: [count] — Moderate risk, should be remediated within 30 days
+- **Low**: [count] — Minor risk, remediate during next maintenance window
+- **Informational**: [count] — Best practice recommendations
+
+### 3. MITRE ATT&CK Coverage
+- **CRITICAL: You MUST include a dedicated table mapping all identified techniques:**
+  * Tactic | Technique ID | Finding Title | Severity
+  * Example: Initial Access | T1190 | SQL Injection in Login Form | Critical
+
+### 4. Key Findings Summary
+- List the top findings with severity, affected assets, and one-line descriptions
+- Include remediation priorities ordered by risk
+
+### 5. Detailed Findings
+- For each finding include: Title, Severity, CVSS Score, MITRE ATT&CK ID, Description, Proof of Concept, Impact, Remediation
+
+### 6. Conclusion
+- Overall assessment of the target's security posture
+- Highlight any remaining steps if the task is incomplete
+
+### Formatting Rules
+- Be written in the engagement language (`{{.Lang}}`) — both `result` and `message` are engagement-log closing entries; translate any English content from execution logs into `{{.Lang}}` while preserving technical identifiers (CVEs, CLI tool names, IPs, ports, file paths, code identifiers, MITRE ATT&CK IDs) verbatim
 - Never exceed {{.N}} characters in total length
 
 ## CRITICAL EVALUATION PRINCIPLES
@@ -108,8 +134,8 @@ Your final report MUST:
 
 You MUST complete your evaluation by using the `{{.ReportResultToolName}}` tool with:
 - The "success" field — boolean true/false reflecting your independent judgment of overall task outcome
-- The "result" field — detailed assessment grounded in concrete evidence from execution logs; engagement-log closing entry written in the engagement language (`{{.Lang}}`), translated from English source material while preserving technical identifiers verbatim
-- The "message" field — concise recap of the key outcome; engagement-log closing summary written in the engagement language (`{{.Lang}}`)
+- The "result" field — detailed assessment following the professional report structure above; engagement-log closing entry written in the engagement language (`{{.Lang}}`), translated from English source material while preserving technical identifiers verbatim (including MITRE ATT&CK IDs and CVSS scores)
+- The "message" field — concise recap of the key outcome including the risk severity counts; engagement-log closing summary written in the engagement language (`{{.Lang}}`)
 {{if .UserFiles}}
 
 ## TASK MATERIALS

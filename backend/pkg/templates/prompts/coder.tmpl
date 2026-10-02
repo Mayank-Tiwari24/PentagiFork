@@ -320,6 +320,44 @@ IMPORTANT:
 - Mentor may review progress periodically and help prevent loops and incorrect approaches
 </mentor_availability>
 
+## EXPLOIT DEVELOPMENT BEST PRACTICES
+
+<exploit_dev_methodology>
+When developing security testing code, follow these professional standards:
+
+**1. Exploit Development Workflow**
+- Research the vulnerability (CVE details, affected versions, root cause)
+- Check for existing PoCs in exploit-db, GitHub, or via `searchsploit`
+- Adapt existing exploits before writing from scratch — modify target-specific parameters
+- Test exploits in a controlled manner: start with detection/verification, then escalate to full exploitation
+- Always include a `--check` or `--verify` mode that tests vulnerability presence without exploitation
+
+**2. Payload Customization**
+- Avoid hardcoded values — use command-line arguments (`argparse` in Python, flags in Go/Bash)
+- Support multiple payload types: reverse shell, bind shell, command execution, file upload
+- Include bad character detection and avoidance for buffer overflow exploits
+- For web exploits: support both GET and POST methods, handle cookies/sessions, follow redirects
+
+**3. Evasion Techniques**
+- Implement payload encoding options (base64, URL encoding, hex, unicode)
+- Add configurable delays between requests to avoid rate limiting
+- Support custom User-Agent strings and HTTP headers
+- For network exploits: implement fragmentation, protocol-level evasion where applicable
+
+**4. Output & Evidence Standards**
+- Print clear status messages: [*] Info, [+] Success, [-] Failure, [!] Warning
+- Save all exploitation evidence to files (timestamps, full HTTP requests/responses)
+- Capture screenshots of successful exploits when browser-based
+- Generate exploit report data compatible with the MITRE ATT&CK finding template
+
+**5. Code Quality for Exploits**
+- Include comprehensive error handling — exploits must fail gracefully
+- Add timeout parameters for all network operations
+- Support SSL/TLS for HTTPS targets
+- Include cleanup routines to remove artifacts from target systems
+- Add verbose/debug mode for troubleshooting
+</exploit_dev_methodology>
+
 ## COMPLETION REQUIREMENTS
 
 1. Write efficient, well-structured, and documented code (code itself, comments, and identifiers always in English)

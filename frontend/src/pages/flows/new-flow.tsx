@@ -32,7 +32,23 @@ function NewFlow() {
         setIsLoading(true);
 
         try {
-            const flowId = flowType === 'automation' ? await createFlow(values) : await createFlowWithAssistant(values);
+            const hasScopeInclude = values.scopeInclude && values.scopeInclude.trim().length > 0;
+            const hasScopeExclude = values.scopeExclude && values.scopeExclude.trim().length > 0;
+            
+            let finalMessage = values.message;
+            if (hasScopeInclude || hasScopeExclude) {
+                finalMessage += '\n\n[SCOPE OF WORK]';
+                if (hasScopeInclude) {
+                    finalMessage += `\nIncluded Targets:\n${values.scopeInclude?.trim()}`;
+                }
+                if (hasScopeExclude) {
+                    finalMessage += `\n\nExcluded Targets (DO NOT TOUCH):\n${values.scopeExclude?.trim()}`;
+                }
+            }
+
+            const finalValues = { ...values, message: finalMessage };
+
+            const flowId = flowType === 'automation' ? await createFlow(finalValues) : await createFlowWithAssistant(finalValues);
 
             if (!flowId) {
                 return false;

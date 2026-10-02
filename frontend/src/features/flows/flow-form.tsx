@@ -18,6 +18,7 @@ import { z } from 'zod';
 
 import type { UserResourceFragmentFragment } from '@/graphql/types';
 
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProviderIcon } from '@/components/icons/provider-icon';
 import ConfirmationDialog from '@/components/shared/confirmation-dialog';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useResourcesUpload } from '@/features/resources/use-resources-upload';
 import { useAppForm } from '@/hooks/use-app-form';
@@ -53,6 +55,8 @@ const formSchema = z.object({
     providerName: z.string().trim().min(1, { message: 'Provider must be selected' }),
     resourceIds: z.array(z.string()),
     useAgents: z.boolean(),
+    scopeInclude: z.string().optional(),
+    scopeExclude: z.string().optional(),
 });
 
 export interface FlowFormProps {
@@ -151,6 +155,8 @@ export function FlowForm({
             providerName: defaultValues?.providerName ?? '',
             resourceIds: defaultValues?.resourceIds ?? [],
             useAgents: defaultValues?.useAgents ?? false,
+            scopeInclude: defaultValues?.scopeInclude ?? '',
+            scopeExclude: defaultValues?.scopeExclude ?? '',
         },
         schema: formSchema,
     });
@@ -485,6 +491,7 @@ export function FlowForm({
             <form
                 noValidate
                 onSubmit={handleFormSubmit(handleSubmit)}
+                className="flex flex-col gap-2"
             >
                 <FormField
                     control={control}
@@ -790,6 +797,47 @@ export function FlowForm({
                         </FormControl>
                     )}
                 />
+                <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="scope" className="border-b-0">
+                        <AccordionTrigger className="text-muted-foreground py-2 text-xs hover:no-underline">Scope of Work (Optional)</AccordionTrigger>
+                        <AccordionContent className="flex flex-col gap-4 px-1 pb-4">
+                            <FormField
+                                control={control}
+                                name="scopeInclude"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs">Included Targets</FormLabel>
+                                        <FormControl>
+                                            <Textarea 
+                                                {...field} 
+                                                className="min-h-[60px] text-xs" 
+                                                disabled={isFormDisabled}
+                                                placeholder="e.g. 10.0.0.1/24, example.com" 
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={control}
+                                name="scopeExclude"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs">Excluded Targets (DO NOT TOUCH)</FormLabel>
+                                        <FormControl>
+                                            <Textarea 
+                                                {...field} 
+                                                className="min-h-[60px] text-xs" 
+                                                disabled={isFormDisabled}
+                                                placeholder="e.g. 10.0.0.5, *.staging.example.com" 
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </form>
             <input
                 aria-hidden="true"

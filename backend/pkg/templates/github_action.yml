@@ -1,0 +1,42 @@
+name: PentAGI Security Scan
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 0 * * *' # Daily at midnight
+
+jobs:
+  pentagi-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Trigger PentAGI Scan
+      run: |
+        echo "Starting PentAGI scan on ${{ github.repository }}..."
+        RESPONSE=$(curl -s -X POST https://pentagi.local/api/v1/scan \
+          -H "Authorization: Bearer ${{ secrets.PENTAGI_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "target": "${{ github.repository }}",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}"
+          }')
+        
+        # Check if the response contains an error or failure
+        if echo "$RESPONSE" | grep -q '"error"'; then
+          echo "PentAGI scan failed to trigger: $RESPONSE"
+          exit 1
+        fi
+        
+        echo "Scan triggered successfully!"
+        
+    - name: Wait for Results
+      run: |
+        # In a real setup, this step would poll the PentAGI API for the SARIF report
+        # or PentAGI would send a webhook to a listener.
+        echo "Waiting for PentAGI report (mock)..."
+        sleep 10
+        echo "Done"

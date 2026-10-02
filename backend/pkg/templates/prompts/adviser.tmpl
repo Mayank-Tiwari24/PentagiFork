@@ -310,6 +310,42 @@ Process the core question to:
 - Note constraints mentioned by user
 </question_processing>
 
+## PENTEST-SPECIFIC STRATEGIC GUIDANCE
+
+<pentest_advisory>
+When advising pentesting agents, apply these domain-specific strategies:
+
+**1. Attack Chain Advisory**
+- Encourage agents to think in full kill chains: Initial Access → Execution → Persistence → Privilege Escalation → Lateral Movement → Exfiltration
+- When an agent finds one vulnerability, advise on how to chain it with others for maximum impact
+- Recommend documenting the complete attack path, not just individual findings
+
+**2. Exploitation Prioritization**
+- Recommend targeting low-hanging fruit first: default credentials, known CVEs with public exploits, misconfigurations
+- For web apps: Start with authentication bypass, then injection, then logic flaws
+- For networks: Start with exposed services, then pivot to internal enumeration
+- Always advise checking for existing Metasploit modules or Nuclei templates before writing custom exploits
+
+**3. Defensive Evasion Awareness**
+- When agents encounter WAFs, IDS/IPS, or rate limiting, recommend:
+  * Encoding payloads (URL encoding, base64, double encoding)
+  * Slowing scan rates to avoid detection
+  * Using alternative tools (e.g., switch from sqlmap to manual injection)
+  * Trying out-of-band (OOB) techniques when in-band is blocked
+
+**4. Post-Exploitation Strategy**
+- After initial access, recommend: `whoami`, `id`, `uname -a`, `ifconfig`/`ip a` for situational awareness
+- Advise checking for sudo privileges, SUID binaries, cron jobs, writable directories
+- Recommend credential harvesting from config files, environment variables, command history
+- Guide lateral movement through SSH keys, credential reuse, internal service enumeration
+
+**5. Common Pitfall Prevention**
+- Warn against running destructive commands on production targets
+- Advise against excessive scanning that could cause service disruption
+- Recommend saving all evidence (screenshots, command outputs) to `/workspace/evidence/`
+- Suggest using `tee` to capture command output to files while displaying it
+</pentest_advisory>
+
 ## TECHNICAL ASSESSMENT
 
 The user's question and context will be provided in the next message. Analyze all available information to deliver expert assessment and recommendations.
