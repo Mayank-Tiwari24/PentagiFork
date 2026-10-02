@@ -797,10 +797,19 @@ export function FlowForm({
                         </FormControl>
                     )}
                 />
-                <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="scope" className="border-b-0">
-                        <AccordionTrigger className="text-muted-foreground py-2 text-xs hover:no-underline">Scope of Work (Optional)</AccordionTrigger>
-                        <AccordionContent className="flex flex-col gap-4 px-1 pb-4">
+                <Accordion
+                    type="single"
+                    collapsible
+                    className="w-full"
+                >
+                    <AccordionItem
+                        value="scope"
+                        className="border-b-0"
+                    >
+                        <AccordionTrigger className="py-2 text-xs text-muted-foreground hover:no-underline">
+                            Scope of Work (Optional)
+                        </AccordionTrigger>
+                        <AccordionContent className="flex flex-col gap-4 pb-4 px-1">
                             <FormField
                                 control={control}
                                 name="scopeInclude"
@@ -808,11 +817,11 @@ export function FlowForm({
                                     <FormItem>
                                         <FormLabel className="text-xs">Included Targets</FormLabel>
                                         <FormControl>
-                                            <Textarea 
-                                                {...field} 
-                                                className="min-h-[60px] text-xs" 
+                                            <Textarea
+                                                {...field}
+                                                className="min-h-[60px] text-xs"
                                                 disabled={isFormDisabled}
-                                                placeholder="e.g. 10.0.0.1/24, example.com" 
+                                                placeholder="e.g. 10.0.0.1/24, example.com"
                                             />
                                         </FormControl>
                                     </FormItem>
@@ -825,11 +834,11 @@ export function FlowForm({
                                     <FormItem>
                                         <FormLabel className="text-xs">Excluded Targets (DO NOT TOUCH)</FormLabel>
                                         <FormControl>
-                                            <Textarea 
-                                                {...field} 
-                                                className="min-h-[60px] text-xs" 
+                                            <Textarea
+                                                {...field}
+                                                className="min-h-[60px] text-xs"
                                                 disabled={isFormDisabled}
-                                                placeholder="e.g. 10.0.0.5, *.staging.example.com" 
+                                                placeholder="e.g. 10.0.0.5, *.staging.example.com"
                                             />
                                         </FormControl>
                                     </FormItem>

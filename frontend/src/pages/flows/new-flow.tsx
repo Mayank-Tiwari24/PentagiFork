@@ -34,7 +34,7 @@ function NewFlow() {
         try {
             const hasScopeInclude = values.scopeInclude && values.scopeInclude.trim().length > 0;
             const hasScopeExclude = values.scopeExclude && values.scopeExclude.trim().length > 0;
-            
+
             let finalMessage = values.message;
             if (hasScopeInclude || hasScopeExclude) {
                 finalMessage += '\n\n[SCOPE OF WORK]';
@@ -48,7 +48,8 @@ function NewFlow() {
 
             const finalValues = { ...values, message: finalMessage };
 
-            const flowId = flowType === 'automation' ? await createFlow(finalValues) : await createFlowWithAssistant(finalValues);
+            const flowId =
+                flowType === 'automation' ? await createFlow(finalValues) : await createFlowWithAssistant(finalValues);
 
             if (!flowId) {
                 return false;
