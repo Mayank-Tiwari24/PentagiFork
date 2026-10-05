@@ -806,10 +806,10 @@ export function FlowForm({
                         value="scope"
                         className="border-b-0"
                     >
-                        <AccordionTrigger className="py-2 text-xs text-muted-foreground hover:no-underline">
+                        <AccordionTrigger className="text-muted-foreground py-2 text-xs hover:no-underline">
                             Scope of Work (Optional)
                         </AccordionTrigger>
-                        <AccordionContent className="flex flex-col gap-4 pb-4 px-1">
+                        <AccordionContent className="flex flex-col gap-4 px-1 pb-4">
                             <FormField
                                 control={control}
                                 name="scopeInclude"
