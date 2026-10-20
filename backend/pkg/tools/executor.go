@@ -341,16 +341,35 @@ func (ce *customExecutor) Execute(
 	wrapHandler := func(ctx context.Context, name string, args json.RawMessage) (string, database.MsglogResultFormat, error) {
 		resultFormat := getMessageResultFormat(name)
 		result, err := handler(ctx, name, args)
-		persistCtx := context.WithoutCancel(ctx)
+		persistCtx, persistCancel := context.WithTimeout(context.WithoutCancel(ctx), closingWriteTimeout)
+		defer persistCancel()
 
 		if err != nil {
 			durationDelta := time.Since(startTime).Seconds()
 			failureResult := fmt.Sprintf("failed to execute handler: %s", err.Error())
-			_ = ce.tclp.UpdateLogFailed(persistCtx, tcID, failureResult, durationDelta)
+			if logErr := ce.tclp.UpdateLogFailed(persistCtx, tcID, failureResult, durationDelta); logErr != nil {
+				obs.LogErrorOrCancel(logger, logErr, "failed to update failed tool call log")
+			}
 			return "", resultFormat, fmt.Errorf("failed to execute handler: %w", err)
 		}
 
 		result = database.SanitizeUTF8(result)
+
+		// Pre-filter noisy terminal output (nmap XML, curl HTML, subfinder
+		// lists) before the LLM summarizer sees it. This strips closed ports,
+		// HTML boilerplate, and duplicate entries — keeping only
+		// security-relevant data. If the filtered result fits under
+		// DefaultResultSizeLimit the summarizer call is skipped entirely,
+		// saving ~4K tokens per avoided call.
+		if name == TerminalToolName && len(result) > DefaultResultSizeLimit {
+			var termArgs struct {
+				Input string `json:"input"`
+			}
+			if err := json.Unmarshal(args, &termArgs); err == nil && termArgs.Input != "" {
+				result = preFilterTerminalResult(termArgs.Input, result)
+			}
+		}
+
 		allowSummarize := slices.Contains(allowedSummarizingToolsResult, name)
 		switch {
 		case ce.summarizer != nil && allowSummarize && len(result) > DefaultResultSizeLimit:
@@ -362,7 +381,9 @@ func (ce *customExecutor) Execute(
 			if ctx.Err() != nil {
 				durationDelta := time.Since(startTime).Seconds()
 				failureResult := fmt.Sprintf("failed to summarize result: %s", err.Error())
-				_ = ce.tclp.UpdateLogFailed(persistCtx, tcID, failureResult, durationDelta)
+				if logErr := ce.tclp.UpdateLogFailed(persistCtx, tcID, failureResult, durationDelta); logErr != nil {
+					obs.LogErrorOrCancel(logger, logErr, "failed to update failed tool call log")
+				}
 				return "", resultFormat, fmt.Errorf("failed to summarize result: %w", err)
 			}
 			logger.WithError(err).Warn("failed to summarize tool result, truncating it instead")

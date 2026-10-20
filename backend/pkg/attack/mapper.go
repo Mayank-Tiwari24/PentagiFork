@@ -168,8 +168,17 @@ func (m *Mapper) GetCoverageMatrix() CoverageMatrix {
 
 	// Count techniques per tactic (from our mappings)
 	for _, mapping := range m.mappings {
-		if rules, ok := ToolTechniqueMap[mapping.Source]; ok {
-			for _, rule := range rules {
+		var rules []MappingRule
+		if strings.HasPrefix(mapping.Source, "tool:") {
+			rules = ToolTechniqueMap[strings.TrimPrefix(mapping.Source, "tool:")]
+		} else if strings.HasPrefix(mapping.Source, "keyword:") {
+			rules = KeywordTechniqueMap[strings.TrimPrefix(mapping.Source, "keyword:")]
+		} else if strings.HasPrefix(mapping.Source, "description:") {
+			rules = KeywordTechniqueMap[strings.TrimPrefix(mapping.Source, "description:")]
+		}
+
+		for _, rule := range rules {
+			if rule.TechniqueID == mapping.TechniqueID {
 				tacticTotal[rule.Tactic]++
 				if mapping.Confidence > 0.5 {
 					tacticCoverage[rule.Tactic]++

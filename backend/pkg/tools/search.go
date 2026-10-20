@@ -297,8 +297,8 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 					langfuse.WithEventStatus(err.Error()),
 					langfuse.WithEventLevel(langfuse.ObservationLevelError),
 				)...)
-				logger.WithError(err).Error("failed to store answer for question")
-				return "", fmt.Errorf("failed to store answer for question: %w", err)
+				logger.WithError(err).Warn("failed to store answer in vector store (embedding server unavailable), continuing without vector indexing")
+				return "answer stored without vector embedding (embedding server unavailable)", nil
 			}
 		} else {
 			// Slow path: Answer field exceeds embedding limit.
@@ -312,8 +312,8 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 					langfuse.WithEventStatus(err.Error()),
 					langfuse.WithEventLevel(langfuse.ObservationLevelError),
 				)...)
-				logger.WithError(err).Error("failed to store answer with embedding limit")
-				return "", fmt.Errorf("failed to store answer for question: %w", err)
+				logger.WithError(err).Warn("failed to store answer with embedding limit (embedding server unavailable), continuing without vector indexing")
+				return "answer stored without vector embedding (embedding server unavailable)", nil
 			}
 			ids = []string{id}
 			docs = []schema.Document{

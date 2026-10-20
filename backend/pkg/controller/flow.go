@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,6 +25,7 @@ import (
 	"pentagi/pkg/providers"
 	"pentagi/pkg/providers/pconfig"
 	"pentagi/pkg/providers/provider"
+	"pentagi/pkg/report"
 	"pentagi/pkg/resources"
 	"pentagi/pkg/tools"
 
@@ -200,7 +202,6 @@ func buildFlowWorker(
 				"user_id":       fwc.userID,
 				"user_email":    user.Mail,
 				"user_name":     user.Name,
-				"user_hash":     user.Hash,
 				"user_role":     user.RoleName,
 				"provider_name": fwc.prvname.String(),
 				"provider_type": fwc.prvtype.String(),
@@ -379,7 +380,6 @@ func LoadFlowWorker(ctx context.Context, flow database.Flow, fwc flowWorkerCtx) 
 				"user_id":       flow.UserID,
 				"user_email":    user.Mail,
 				"user_name":     user.Name,
-				"user_hash":     user.Hash,
 				"user_role":     user.RoleName,
 				"provider_name": flow.ModelProviderName,
 				"provider_type": flow.ModelProviderType,
@@ -667,7 +667,7 @@ func (fw *flowWorker) ListAssistants(ctx context.Context) []AssistantWorker {
 	}
 
 	slices.SortFunc(assistants, func(a, b AssistantWorker) int {
-		return int(a.GetAssistantID() - b.GetAssistantID())
+		return cmp.Compare(a.GetAssistantID(), b.GetAssistantID())
 	})
 
 	return assistants
@@ -846,11 +846,35 @@ func (fw *flowWorker) Finish(ctx context.Context) error {
 		return err
 	}
 
+	var findings []report.Finding
 	for _, task := range fw.tc.ListTasks(ctx) {
 		if !task.IsCompleted() {
 			if err := task.Finish(ctx); err != nil {
 				return fmt.Errorf("failed to finish task %d: %w", task.GetTaskID(), err)
 			}
+		}
+
+		taskID := task.GetTaskID()
+		findings = append(findings, report.Finding{
+			ID:          fmt.Sprintf("task-%d", taskID),
+			Title:       task.GetTitle(),
+			Description: fmt.Sprintf("Action performed by agent for task %d", taskID),
+			Severity:    "info",
+			Target:      "Unknown",
+			FlowID:      fw.flowCtx.FlowID,
+			TaskID:      &taskID,
+			FoundAt:     time.Now(),
+		})
+	}
+
+	if len(findings) > 0 {
+		gen := report.NewGenerator("1.0.0")
+		if b, err := gen.GenerateSARIF(findings, time.Now(), time.Now()); err == nil {
+			reportPath := fmt.Sprintf("%s/flow_%d_report.sarif.json", fw.cfg.DataDir, fw.flowCtx.FlowID)
+			_ = os.WriteFile(reportPath, b, 0600)
+			fw.logger.Infof("Generated SARIF report at %s", reportPath)
+		} else {
+			fw.logger.WithError(err).Warn("Failed to generate SARIF report")
 		}
 	}
 
@@ -1411,13 +1435,22 @@ func (fw *flowWorker) reportFailure(task TaskWorker, input string, err error) er
 		return err
 	}
 
+	var msgText string
+	if errors.Is(err, tools.ErrToolCrash) {
+		msgText = fmt.Sprintf("⚠️ Tool execution crashed: %s\n\nExecution has been auto-paused to prevent token wastage. Please resolve the issue (e.g. check/restart container or service) and reply with any message to resume.", err)
+	} else if task == nil {
+		msgText = fmt.Sprintf("The task could not start: %s", err)
+	} else {
+		msgText = fmt.Sprintf("The task stopped on an error: %s", err)
+	}
+
 	var putErr error
 	if task == nil {
 		_, putErr = fw.flowCtx.MsgLog.PutFlowMsgResult(fw.ctx, database.MsglogTypeReport, "",
-			fmt.Sprintf("The task could not start: %s", err), input, database.MsglogResultFormatPlain)
+			msgText, input, database.MsglogResultFormatPlain)
 	} else {
 		_, putErr = fw.flowCtx.MsgLog.PutTaskMsg(fw.ctx, database.MsglogTypeReport, task.GetTaskID(), "",
-			fmt.Sprintf("The task stopped on an error: %s", err))
+			msgText)
 	}
 	if putErr != nil {
 		fw.logger.WithError(putErr).Warn("failed to report why the task did not go on")

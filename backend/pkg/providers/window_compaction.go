@@ -21,7 +21,17 @@ func compactChainForWindow(
 	tcIDTemplate string,
 ) ([]llms.MessageContent, bool) {
 	window := provider.ModelLimitsFor(prv, opt).ContextWindow
-	if window == nil || provider.ChainFitsWindow(chain, schemas, *window) {
+	if window == nil {
+		return chain, false
+	}
+
+	// Compact at 40% of the context window, not 100%. Without this, chains
+	// grow unchecked to 60-80K tokens before the first compaction fires,
+	// causing O(n²) token consumption across long subtasks. At 40% the agent
+	// still keeps: full system prompt + current goal + last QA pairs +
+	// compressed summary of earlier turns — zero offensive power lost.
+	earlyThreshold := *window * 40 / 100
+	if provider.ChainFitsWindow(chain, schemas, earlyThreshold) {
 		return chain, false
 	}
 

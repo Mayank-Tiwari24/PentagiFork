@@ -199,7 +199,7 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 				return "", fmt.Errorf("failed to marshal filters: %w", err)
 			}
 			queriesText := g.replacer.ReplaceString(strings.Join(action.Questions, "\n--------------------------------\n"))
-			_, _ = g.vslp.PutLog(
+			if _, logErr := g.vslp.PutLog(
 				ctx,
 				agentCtx.ParentAgentType,
 				agentCtx.CurrentAgentType,
@@ -209,7 +209,9 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 				buffer.String(),
 				g.taskID,
 				g.subtaskID,
-			)
+			); logErr != nil {
+				logger.WithError(logErr).Warn("failed to put vector store log")
+			}
 		}
 
 		return buffer.String(), nil
@@ -277,7 +279,40 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 			err  error
 		)
 
-		if len(anonymizedGuide) <= g.maxEmbeddingBytes || g.embedder == nil {
+		if g.embedder == nil {
+			// No embedder available: store guide as plain document without vector
+			// embeddings. Similarity search won't find it, but we don't crash.
+			logger.Warn("embedder is nil — storing guide without embeddings; similarity search will not index this document")
+			docs, err = documentloaders.NewText(strings.NewReader(anonymizedGuide)).Load(ctx)
+			if err != nil {
+				observation.Event(append(opts,
+					langfuse.WithEventStatus(err.Error()),
+					langfuse.WithEventLevel(langfuse.ObservationLevelError),
+				)...)
+				logger.WithError(err).Error("failed to load document")
+				return "", fmt.Errorf("failed to load document: %w", err)
+			}
+			for i := range docs {
+				if docs[i].Metadata == nil {
+					docs[i].Metadata = map[string]any{}
+				}
+				maps.Copy(docs[i].Metadata, metadata)
+				docs[i].Metadata["part_size"] = len(docs[i].PageContent)
+			}
+			// Attempt to store without embeddings; if this also fails due to
+			// pgvector requiring an embedder, return a descriptive error instead
+			// of panicking.
+			ids, err = g.store.AddDocuments(ctx, docs)
+			eventMetadata["ids"] = ids
+			if err != nil {
+				observation.Event(append(opts,
+					langfuse.WithEventStatus(err.Error()),
+					langfuse.WithEventLevel(langfuse.ObservationLevelError),
+				)...)
+				logger.WithError(err).Warn("failed to store guide without embedder — guide stored as log only")
+				return "guide stored as log only (embedding server unavailable)", nil
+			}
+		} else if len(anonymizedGuide) <= g.maxEmbeddingBytes {
 			// Fast path: document fits within the embedding limit.
 			docs, err = documentloaders.NewText(strings.NewReader(anonymizedGuide)).Load(ctx)
 			if err != nil {
@@ -377,7 +412,7 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 				logger.WithError(err).Error("failed to marshal filters")
 				return "", fmt.Errorf("failed to marshal filters: %w", err)
 			}
-			_, _ = g.vslp.PutLog(
+			if _, logErr := g.vslp.PutLog(
 				ctx,
 				agentCtx.ParentAgentType,
 				agentCtx.CurrentAgentType,
@@ -387,7 +422,9 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 				anonymizedGuide,
 				g.taskID,
 				g.subtaskID,
-			)
+			); logErr != nil {
+				logger.WithError(logErr).Warn("failed to put vector store log")
+			}
 		}
 
 		return "guide stored successfully", nil

@@ -101,6 +101,26 @@ func (t *terminal) normalizeExecTimeout(timeout time.Duration) time.Duration {
 func (t *terminal) wrapCommandResult(ctx context.Context, args json.RawMessage, name, result string, err error) (string, error) {
 	ctx, observation := obs.Observer.NewObservation(ctx)
 	if err != nil {
+		if errors.Is(err, errContainerNotOperational) || errors.Is(err, ErrToolCrash) {
+			observation.Event(
+				langfuse.WithEventName("terminal tool fatal crash"),
+				langfuse.WithEventInput(args),
+				langfuse.WithEventStatus(err.Error()),
+				langfuse.WithEventLevel(langfuse.ObservationLevelError),
+				langfuse.WithEventMetadata(langfuse.Metadata{
+					"tool_name": name,
+					"error":     err.Error(),
+				}),
+			)
+
+			logrus.WithContext(ctx).WithError(err).WithFields(
+				enrichLogrusFields(t.flowID, t.taskID, t.subtaskID, logrus.Fields{
+					"tool":   name,
+					"result": result[:min(len(result), 1000)],
+				})).Error("terminal tool fatal crash - auto-pausing execution to prevent token waste")
+			return "", ToolCrash(err)
+		}
+
 		observation.Event(
 			langfuse.WithEventName("terminal tool error swallowed"),
 			langfuse.WithEventInput(args),
@@ -124,7 +144,7 @@ func (t *terminal) wrapCommandResult(ctx context.Context, args json.RawMessage, 
 
 func (t *terminal) Handle(ctx context.Context, name string, args json.RawMessage) (string, error) {
 	if !t.IsAvailable() {
-		return "", fmt.Errorf("terminal is not available")
+		return "", ToolCrash(fmt.Errorf("terminal is not available"))
 	}
 
 	logger := logrus.WithContext(ctx).WithFields(enrichLogrusFields(t.flowID, t.taskID, t.subtaskID, logrus.Fields{
@@ -346,7 +366,15 @@ func (t *terminal) getExecResult(ctx context.Context, id string, timeout time.Du
 	results = fmt.Sprintf("%s\n[exit code: %d]", results, inspect.ExitCode)
 
 	if inspect.ExitCode > 128 && errors.Is(t.requireRunningContainer(ctx), errContainerNotOperational) {
-		results += "\n[interrupted: the sandbox container stopped]"
+		return "", ToolCrash(fmt.Errorf("terminal execution crashed: sandbox container stopped during command execution (exit code %d)", inspect.ExitCode))
+	}
+
+	if inspect.ExitCode == 137 {
+		return "", ToolCrash(fmt.Errorf("terminal command killed by system / OOM killer (exit code 137): %s", truncateString(results, 500)))
+	}
+
+	if inspect.ExitCode == 139 {
+		return "", ToolCrash(fmt.Errorf("terminal command crashed with segmentation fault (exit code 139): %s", truncateString(results, 500)))
 	}
 
 	return results, nil

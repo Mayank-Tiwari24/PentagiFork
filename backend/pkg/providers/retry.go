@@ -71,8 +71,10 @@ func isRejectedRequestStatus(err error) bool {
 	}
 }
 
-func retryTransient[T any](ctx context.Context, delay time.Duration, call func() (T, error)) (T, error) {
+func retryTransient[T any](ctx context.Context, baseDelay time.Duration, call func() (T, error)) (T, error) {
 	var zero T
+	delay := baseDelay
+	const maxDelay = 60 * time.Second
 	for attempt := 1; ; attempt++ {
 		result, err := call()
 		switch {
@@ -84,10 +86,15 @@ func retryTransient[T any](ctx context.Context, delay time.Duration, call func()
 			return zero, fmt.Errorf("gave up after %d attempts: %w", attempt, err)
 		}
 
+		// Exponential backoff: double the delay each attempt, capped at maxDelay.
 		select {
 		case <-ctx.Done():
 			return zero, ctx.Err()
 		case <-time.After(delay):
+		}
+		delay *= 2
+		if delay > maxDelay {
+			delay = maxDelay
 		}
 	}
 }

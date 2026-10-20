@@ -2,7 +2,9 @@ package embeddings
 
 import (
 	"context"
+	"fmt"
 	"maps"
+	"sync"
 
 	obs "pentagi/pkg/observability"
 	"pentagi/pkg/observability/langfuse"
@@ -15,9 +17,22 @@ type wrapper struct {
 	provider string
 	metadata langfuse.Metadata
 	embeddings.Embedder
+
+	// Circuit breaker: after the first embedding failure, all subsequent
+	// calls return immediately with the cached error instead of waiting
+	// for another multi-minute timeout. This prevents the cascading
+	// 14-minute downtime observed when the embedding provider is down.
+	breakerOnce sync.Once
+	breakerErr  error
+	broken      bool
 }
 
 func (w *wrapper) EmbedDocuments(ctx context.Context, texts []string) ([][]float32, error) {
+	// Circuit breaker: if a previous call already failed, return immediately.
+	if w.broken {
+		return nil, fmt.Errorf("embedding circuit breaker open (provider unavailable): %w", w.breakerErr)
+	}
+
 	ctx, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "embeddings.EmbedDocuments")
 	defer span.End()
 
@@ -44,6 +59,13 @@ func (w *wrapper) EmbedDocuments(ctx context.Context, texts []string) ([][]float
 	}
 
 	if err != nil {
+		// Trip the circuit breaker on the first failure so subsequent
+		// calls don't each wait for an 8-minute timeout.
+		w.breakerOnce.Do(func() {
+			w.breakerErr = err
+			w.broken = true
+		})
+
 		opts = append(opts,
 			langfuse.WithEmbeddingStatus(err.Error()),
 			langfuse.WithEmbeddingLevel(langfuse.ObservationLevelError),
@@ -65,6 +87,11 @@ func (w *wrapper) EmbedDocuments(ctx context.Context, texts []string) ([][]float
 }
 
 func (w *wrapper) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
+	// Circuit breaker: if a previous call already failed, return immediately.
+	if w.broken {
+		return nil, fmt.Errorf("embedding circuit breaker open (provider unavailable): %w", w.breakerErr)
+	}
+
 	ctx, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "embeddings.EmbedQuery")
 	defer span.End()
 
@@ -91,6 +118,12 @@ func (w *wrapper) EmbedQuery(ctx context.Context, text string) ([]float32, error
 	}
 
 	if err != nil {
+		// Trip the circuit breaker on query failures too.
+		w.breakerOnce.Do(func() {
+			w.breakerErr = err
+			w.broken = true
+		})
+
 		opts = append(opts,
 			langfuse.WithEmbeddingStatus(err.Error()),
 			langfuse.WithEmbeddingLevel(langfuse.ObservationLevelError),

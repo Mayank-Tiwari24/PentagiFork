@@ -129,7 +129,7 @@ func (b *browser) wrapCommandResult(ctx context.Context, name, result, url, scre
 
 func (b *browser) Handle(ctx context.Context, name string, args json.RawMessage) (string, error) {
 	if !b.IsAvailable() {
-		return "", fmt.Errorf("browser is not available")
+		return "", ToolCrash(fmt.Errorf("browser service is not available"))
 	}
 
 	var action Browser

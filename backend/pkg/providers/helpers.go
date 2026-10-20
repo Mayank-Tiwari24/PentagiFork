@@ -138,7 +138,14 @@ func repeatingToolResponse(funcName string, repeats int, previous string) string
 func (rd *repeatingDetector) clearCallArguments(toolCall *llms.FunctionCall) llms.FunctionCall {
 	var v map[string]any
 	if err := json.Unmarshal([]byte(toolCall.Arguments), &v); err != nil {
-		return *toolCall
+		// Invalid JSON: normalize by stripping whitespace so identical raw
+		// arguments still match across calls — prevents infinite loops when
+		// local models send malformed tool args.
+		normalized := strings.Join(strings.Fields(toolCall.Arguments), " ")
+		return llms.FunctionCall{
+			Name:      toolCall.Name,
+			Arguments: normalized,
+		}
 	}
 
 	delete(v, "message")

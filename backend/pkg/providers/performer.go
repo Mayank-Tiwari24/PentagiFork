@@ -37,7 +37,7 @@ const (
 	maxGeneralAgentChainIterations = 100
 	maxLimitedAgentChainIterations = 20
 	maxAgentShutdownIterations     = 3
-	maxSoftDetectionsBeforeAbort   = 4
+	maxSoftDetectionsBeforeAbort   = 1
 	delayBetweenRetries            = 5 * time.Second
 )
 
@@ -322,9 +322,9 @@ func (fp *flowProvider) execToolCall(
 
 	if detector.detect(toolCall) {
 		if len(detector.funcCalls) >= RepeatingToolCallThreshold+maxSoftDetectionsBeforeAbort {
-			errMsg := fmt.Sprintf("tool '%s' repeated %d times consecutively, aborting chain", funcName, len(detector.funcCalls))
+			errMsg := fmt.Sprintf("tool '%s' repeated %d times consecutively, auto-pausing chain to prevent token burn", funcName, len(detector.funcCalls))
 			logger.WithField("repeat_count", len(detector.funcCalls)).Error(errMsg)
-			return "", errors.New(errMsg)
+			return "", tools.ToolCrash(errors.New(errMsg))
 		}
 
 		response := repeatingToolResponse(funcName, len(detector.funcCalls), detector.lastResponse)
@@ -365,12 +365,10 @@ func (fp *flowProvider) execToolCall(
 				return "", err
 			}
 
-			if errors.Is(err, tools.ErrFlowStateGuard) {
-				// Not an argument-format problem: the flow/task/subtask is in a state
-				// that makes this call impossible right now (task running, no plan
-				// yet, stale subtask, ...). Retrying fixToolCallArgs can't change
-				// that, so surface it to the agent immediately instead of burning
-				// retries on "corrected" arguments that won't help.
+			if errors.Is(err, tools.ErrToolCrash) || errors.Is(err, tools.ErrFlowStateGuard) {
+				// Fatal tool crash or flow state guard: do not waste tokens retrying
+				// or asking LLM to fix JSON arguments. Surface error immediately to pause the chain.
+				logger.WithError(err).Error("fatal tool execution failure; halting agent chain to prevent token waste")
 				return "", err
 			}
 

@@ -223,9 +223,11 @@ func (pe *ParallelExecutor) executeGroup(
 	sem := make(chan struct{}, pe.maxWorkers)
 
 	var (
-		wg      sync.WaitGroup
-		errOnce sync.Once
-		firstErr error
+		wg         sync.WaitGroup
+		errOnce    sync.Once
+		firstErr   error
+		failedCount int
+		mu         sync.Mutex
 	)
 
 	groupCtx, groupCancel := context.WithCancel(ctx)
@@ -267,6 +269,10 @@ func (pe *ParallelExecutor) executeGroup(
 					"duration":   time.Since(startTime).Seconds(),
 				}).Error("parallel subtask failed")
 
+				mu.Lock()
+				failedCount++
+				mu.Unlock()
+
 				// Record the first error — don't cancel other subtasks in the group
 				// (pentest philosophy: one failure shouldn't stop other attack vectors)
 				errOnce.Do(func() {
@@ -286,7 +292,10 @@ func (pe *ParallelExecutor) executeGroup(
 
 	// In pentest mode, we don't fail the group if some subtasks fail —
 	// partial results are still valuable. Only return error if ALL subtasks failed.
-	return firstErr
+	if failedCount == len(group.Subtasks) && failedCount > 0 {
+		return firstErr
+	}
+	return nil
 }
 
 // ============================================================================

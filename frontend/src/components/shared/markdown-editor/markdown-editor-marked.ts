@@ -986,7 +986,7 @@ const LinkDefinitions = Extension.create({
 });
 
 export const createMarkdownLayer = () => [
-    Markdown.configure({ marked: createTunedMarked() as unknown as typeof import('marked').marked }),
+    Markdown.configure({ marked: createTunedMarked() as any }),
     TunedMarkdownText,
     withLayoutFacts(LinkDefinitions),
 ];
