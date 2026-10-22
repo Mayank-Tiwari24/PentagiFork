@@ -23,7 +23,10 @@ networks:
 
 services:
   pentagi:
-    image: ${PENTAGI_IMAGE:-vxcontrol/pentagi:latest}
+    image: ${PENTAGI_IMAGE:-pentagi:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     container_name: pentagi
     hostname: pentagi
