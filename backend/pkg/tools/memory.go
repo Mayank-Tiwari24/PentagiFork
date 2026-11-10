@@ -49,7 +49,7 @@ func NewMemoryTool(
 
 func (m *memory) Handle(ctx context.Context, name string, args json.RawMessage) (string, error) {
 	if !m.IsAvailable() {
-		return "", fmt.Errorf("memory is not available")
+		return "", ToolCrash(fmt.Errorf("memory tool is not available: store not initialized"))
 	}
 
 	ctx, observation := obs.Observer.NewObservation(ctx)
@@ -60,7 +60,7 @@ func (m *memory) Handle(ctx context.Context, name string, args json.RawMessage) 
 
 	if m.store == nil {
 		logger.Error("pgvector store is not initialized")
-		return "", fmt.Errorf("pgvector store is not initialized")
+		return "", ToolCrash(fmt.Errorf("pgvector store is not initialized"))
 	}
 
 	switch name {

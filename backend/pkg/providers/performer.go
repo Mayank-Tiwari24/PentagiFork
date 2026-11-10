@@ -29,12 +29,12 @@ import (
 const (
 	maxRetriesToCallSimpleChain = 3
 	maxRetriesToCallAgentChain  = 3
-	maxRetriesToCallFunction    = 3
+	maxRetriesToCallFunction    = 2
 	// repeatEchoLimit caps the previous tool answer quoted back on a repeat, so
 	// echoing it cannot re-inflate a chain that is already being summarized.
 	repeatEchoLimit                = 4096
-	maxReflectorCallsPerChain      = 3
-	maxGeneralAgentChainIterations = 100
+	maxReflectorCallsPerChain      = 2
+	maxGeneralAgentChainIterations = 35
 	maxLimitedAgentChainIterations = 20
 	maxAgentShutdownIterations     = 3
 	maxSoftDetectionsBeforeAbort   = 1

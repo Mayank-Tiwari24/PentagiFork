@@ -73,7 +73,7 @@ func NewCodeTool(
 
 func (c *code) Handle(ctx context.Context, name string, args json.RawMessage) (string, error) {
 	if !c.IsAvailable() {
-		return "", fmt.Errorf("code is not available")
+		return "", ToolCrash(fmt.Errorf("code tool is not available: store not initialized"))
 	}
 
 	ctx, observation := obs.Observer.NewObservation(ctx)
@@ -84,7 +84,7 @@ func (c *code) Handle(ctx context.Context, name string, args json.RawMessage) (s
 
 	if c.store == nil {
 		logger.Error("pgvector store is not initialized")
-		return "", fmt.Errorf("pgvector store is not initialized")
+		return "", ToolCrash(fmt.Errorf("pgvector store is not initialized"))
 	}
 
 	switch name {

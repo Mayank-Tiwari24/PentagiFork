@@ -154,3 +154,80 @@ func TestEnrichWAFAndRateLimitAdvice(t *testing.T) {
 	assert.Contains(t, resModSec, "ModSecurity WAF detected")
 }
 
+func TestPreFilterTerminalResult_URLDiscovery(t *testing.T) {
+	var input strings.Builder
+	input.WriteString("http://target.com/\n")
+	input.WriteString("http://target.com/about\n")
+	input.WriteString("http://target.com/api/v1/users\n")
+	input.WriteString("http://target.com/admin/login.php\n")
+	input.WriteString("http://target.com/search?query=test&page=1\n")
+
+	// Add 1000 static asset noise lines to push over 16KB limit
+	for i := 0; i < 500; i++ {
+		input.WriteString("http://target.com/static/images/logo.png\n")
+		input.WriteString("http://target.com/assets/css/main.css\n")
+		input.WriteString("http://target.com/fonts/glyphicons.woff2\n")
+	}
+
+	raw := input.String()
+	assert.Greater(t, len(raw), DefaultResultSizeLimit)
+
+	filtered := preFilterTerminalResult("katana -u http://target.com", raw)
+	assert.Contains(t, filtered, "[pre-filtered: URL discovery")
+	assert.Contains(t, filtered, "http://target.com/api/v1/users")
+	assert.Contains(t, filtered, "http://target.com/admin/login.php")
+	assert.Contains(t, filtered, "http://target.com/search?query=test&page=1")
+	assert.NotContains(t, filtered, "logo.png")
+	assert.NotContains(t, filtered, "main.css")
+	assert.NotContains(t, filtered, "glyphicons.woff2")
+}
+
+func TestPreFilterTerminalResult_SSLScan(t *testing.T) {
+	var input strings.Builder
+	input.WriteString("Testing SSL server target.com on port 443\n")
+	input.WriteString("SSLv2  disabled\n")
+	input.WriteString("SSLv3  disabled\n")
+	input.WriteString("TLSv1.0  enabled\n")
+	input.WriteString("TLSv1.1  enabled\n")
+	input.WriteString("Heartbleed: vulnerable\n")
+	input.WriteString("Issuer: Let's Encrypt\n")
+
+	// Add 500 lines of modern accepted ciphers to push over 16KB limit
+	for i := 0; i < 500; i++ {
+		input.WriteString("    Accepted  TLSv1.2  256 bits  ECDHE-RSA-AES256-GCM-SHA384\n")
+		input.WriteString("    Accepted  TLSv1.3  256 bits  TLS_AES_256_GCM_SHA384\n")
+	}
+
+	raw := input.String()
+	assert.Greater(t, len(raw), DefaultResultSizeLimit)
+
+	filtered := preFilterTerminalResult("sslscan target.com:443", raw)
+	assert.Contains(t, filtered, "[pre-filtered: SSL/TLS scan")
+	assert.Contains(t, filtered, "TLSv1.0  enabled")
+	assert.Contains(t, filtered, "Heartbleed: vulnerable")
+	assert.NotContains(t, filtered, "TLS_AES_256_GCM_SHA384")
+}
+
+func TestPreFilterTerminalResult_Masscan(t *testing.T) {
+	var input strings.Builder
+	input.WriteString("Starting masscan 1.3.2\n")
+	input.WriteString("Discovered open port 80/tcp on 192.168.1.1\n")
+	input.WriteString("Discovered open port 443/tcp on 192.168.1.1\n")
+	input.WriteString("Discovered open port 8080/tcp on 192.168.1.50\n")
+
+	// Add 600 lines of status noise
+	for i := 0; i < 600; i++ {
+		input.WriteString("rate: 1000-kpps, 10.00% done, 0:01:30 remaining, found=3\n")
+	}
+
+	raw := input.String()
+	assert.Greater(t, len(raw), DefaultResultSizeLimit)
+
+	filtered := preFilterTerminalResult("masscan -p1-65535 192.168.1.0/24 --rate=1000", raw)
+	assert.Contains(t, filtered, "[pre-filtered: masscan/rustscan")
+	assert.Contains(t, filtered, "| 192.168.1.1 | 80 | tcp |")
+	assert.Contains(t, filtered, "| 192.168.1.1 | 443 | tcp |")
+	assert.Contains(t, filtered, "| 192.168.1.50 | 8080 | tcp |")
+	assert.NotContains(t, filtered, "rate: 1000-kpps")
+}
+

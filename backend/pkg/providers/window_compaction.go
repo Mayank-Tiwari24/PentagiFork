@@ -25,17 +25,23 @@ func compactChainForWindow(
 		return chain, false
 	}
 
-	// Compact at 40% of the context window, not 100%. Without this, chains
-	// grow unchecked to 60-80K tokens before the first compaction fires,
-	// causing O(n²) token consumption across long subtasks. At 40% the agent
-	// still keeps: full system prompt + current goal + last QA pairs +
-	// compressed summary of earlier turns — zero offensive power lost.
-	earlyThreshold := *window * 40 / 100
+	// Cap the effective window for compaction purposes. Modern LLMs have
+	// 128K - 1M token context windows (e.g. GPT-4o, Claude 3.5, Gemini).
+	// Without a ceiling, 40% of a 128K-1M window is 51K - 400K tokens, meaning
+	// chains grow massive before the first compaction fires, causing quadratic
+	// token burn across turns.
+	// Capping the effective window at 32,768 tokens ensures compaction triggers
+	// when history exceeds ~16K tokens, keeping context lean while retaining the
+	// full system prompt (~6-8K), goal, recent turns, and summarized history.
+	const maxCompactionCeilingTokens = 32768
+	effectiveWindow := min(*window, maxCompactionCeilingTokens)
+
+	earlyThreshold := effectiveWindow * 50 / 100
 	if provider.ChainFitsWindow(chain, schemas, earlyThreshold) {
 		return chain, false
 	}
 
-	budget := provider.ChainByteBudget(*window, schemas)
+	budget := provider.ChainByteBudget(effectiveWindow, schemas)
 	if budget <= 0 {
 		return chain, false
 	}

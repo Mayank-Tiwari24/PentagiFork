@@ -79,7 +79,7 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 
 	if s.store == nil {
 		logger.Error("pgvector store is not initialized")
-		return "", fmt.Errorf("pgvector store is not initialized")
+		return "", ToolCrash(fmt.Errorf("pgvector store is not initialized"))
 	}
 
 	switch name {

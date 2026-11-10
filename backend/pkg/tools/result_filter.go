@@ -42,6 +42,12 @@ func preFilterTerminalResult(command, result string) string {
 		return filterNiktoOutput(result)
 	case isWPScanCommand(cmdLower):
 		return filterWPScanOutput(result)
+	case isURLDiscoveryCommand(cmdLower):
+		return filterURLDiscoveryOutput(result)
+	case isSSLScanCommand(cmdLower):
+		return filterSSLScanOutput(result)
+	case isMasscanCommand(cmdLower):
+		return filterMasscanOutput(result)
 	default:
 		return result // Unknown commands: never touch, preserve full output
 	}
@@ -98,6 +104,25 @@ func isNiktoCommand(cmd string) bool {
 
 func isWPScanCommand(cmd string) bool {
 	return strings.Contains(cmd, "wpscan")
+}
+
+func isURLDiscoveryCommand(cmd string) bool {
+	return strings.Contains(cmd, "katana") ||
+		strings.Contains(cmd, "gau") ||
+		strings.Contains(cmd, "waybackurls") ||
+		strings.Contains(cmd, "hakrawler") ||
+		strings.Contains(cmd, "gospider") ||
+		strings.Contains(cmd, "paramspider")
+}
+
+func isSSLScanCommand(cmd string) bool {
+	return strings.Contains(cmd, "sslscan") ||
+		strings.Contains(cmd, "testssl")
+}
+
+func isMasscanCommand(cmd string) bool {
+	return strings.Contains(cmd, "masscan") ||
+		strings.Contains(cmd, "rustscan")
 }
 
 // --- Filters ---
@@ -484,10 +509,6 @@ func filterNiktoOutput(result string) string {
 		}
 	}
 
-	if count == 0 {
-		return result
-	}
-
 	fmt.Fprintf(&sb, "\n[%d finding lines extracted from %d bytes of output]\n", count, len(result))
 	return sb.String()
 }
@@ -513,11 +534,164 @@ func filterWPScanOutput(result string) string {
 		}
 	}
 
+	fmt.Fprintf(&sb, "\n[%d finding lines extracted from %d bytes of output]\n", count, len(result))
+	return sb.String()
+}
+
+var (
+	staticAssetRegex = regexp.MustCompile(`(?i)\.(png|jpg|jpeg|gif|svg|ico|css|woff|woff2|ttf|eot|mp4|mp3|avi|webp|pdf)$`)
+	highInterestURLRegex = regexp.MustCompile(`(?i)(\?|\&|\.(php|asp|aspx|jsp|json|action|do|xml|conf|env|bak|git|sql|yaml|yml)|/(api|admin|login|auth|token|secret|user|upload|v[0-9]+|swagger|graphql|actuator|debug|console))`)
+)
+
+func filterURLDiscoveryOutput(result string) string {
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: URL discovery — static assets removed, high-value endpoints retained]\n\n")
+
+	lines := strings.Split(result, "\n")
+	seen := make(map[string]bool)
+	var highInterest []string
+	var standardURLs []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "[") || (strings.HasPrefix(trimmed, "http://") && len(trimmed) < 10) {
+			continue
+		}
+
+		// Skip static images, fonts, stylesheets
+		cleanURL := strings.Split(trimmed, "?")[0]
+		if staticAssetRegex.MatchString(cleanURL) {
+			continue
+		}
+
+		if seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+
+		if highInterestURLRegex.MatchString(trimmed) {
+			highInterest = append(highInterest, trimmed)
+		} else {
+			standardURLs = append(standardURLs, trimmed)
+		}
+	}
+
+	totalExtracted := len(highInterest) + len(standardURLs)
+	if totalExtracted == 0 {
+		return result
+	}
+
+	const maxRetainedURLs = 100
+	retained := 0
+
+	if len(highInterest) > 0 {
+		sb.WriteString("### High-Interest Endpoints (Parameters, APIs, Admin, Dynamic):\n")
+		for _, u := range highInterest {
+			if retained >= maxRetainedURLs {
+				break
+			}
+			sb.WriteString(u)
+			sb.WriteByte('\n')
+			retained++
+		}
+		sb.WriteByte('\n')
+	}
+
+	if retained < maxRetainedURLs && len(standardURLs) > 0 {
+		sb.WriteString("### General Discovered Endpoints:\n")
+		for _, u := range standardURLs {
+			if retained >= maxRetainedURLs {
+				break
+			}
+			sb.WriteString(u)
+			sb.WriteByte('\n')
+			retained++
+		}
+	}
+
+	fmt.Fprintf(&sb, "\n[%d endpoints retained (out of %d unique URLs extracted from %d bytes)]\n",
+		retained, totalExtracted, len(result))
+	return sb.String()
+}
+
+func filterSSLScanOutput(result string) string {
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: SSL/TLS scan — security posture and vulnerabilities retained]\n\n")
+
+	lines := strings.Split(result, "\n")
+	count := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		lower := strings.ToLower(trimmed)
+
+		// Skip high-noise accepted modern ciphers
+		if strings.Contains(lower, "accepted") &&
+			(strings.Contains(lower, "tlsv1.2") || strings.Contains(lower, "tlsv1.3")) &&
+			!strings.Contains(lower, "weak") && !strings.Contains(lower, "rc4") && !strings.Contains(lower, "des") {
+			continue
+		}
+
+		// Keep vulnerability checks, certificate details, protocol status, and weak ciphers
+		if strings.Contains(lower, "heartbleed") ||
+			strings.Contains(lower, "poodle") ||
+			strings.Contains(lower, "ccs") ||
+			strings.Contains(lower, "freak") ||
+			strings.Contains(lower, "logjam") ||
+			strings.Contains(lower, "drown") ||
+			strings.Contains(lower, "robot") ||
+			strings.Contains(lower, "sweet32") ||
+			strings.Contains(lower, "crime") ||
+			strings.Contains(lower, "breach") ||
+			strings.Contains(lower, "vulnerable") ||
+			strings.Contains(lower, "not vulnerable") ||
+			strings.Contains(lower, "insecure") ||
+			strings.Contains(lower, "ssl2") || strings.Contains(lower, "sslv2") ||
+			strings.Contains(lower, "ssl3") || strings.Contains(lower, "sslv3") ||
+			strings.Contains(lower, "tls1.0") || strings.Contains(lower, "tlsv1.0") ||
+			strings.Contains(lower, "tls1.1") || strings.Contains(lower, "tlsv1.1") ||
+			strings.Contains(lower, "issuer:") || strings.Contains(lower, "subject:") ||
+			strings.Contains(lower, "expired") || strings.Contains(lower, "self-signed") ||
+			strings.Contains(lower, "signature algorithm") ||
+			strings.Contains(lower, "weak") || strings.Contains(lower, "rc4") || strings.Contains(lower, "des") ||
+			strings.Contains(lower, "warning") || strings.Contains(lower, "testing") {
+			sb.WriteString(trimmed)
+			sb.WriteByte('\n')
+			count++
+		}
+	}
+
 	if count == 0 {
 		return result
 	}
 
-	fmt.Fprintf(&sb, "\n[%d finding lines extracted from %d bytes of output]\n", count, len(result))
+	fmt.Fprintf(&sb, "\n[%d security-relevant TLS findings extracted from %d bytes]\n", count, len(result))
+	return sb.String()
+}
+
+var masscanPortRegex = regexp.MustCompile(`(?i)open\s+port\s+(\d+)/(tcp|udp)\s+on\s+([0-9\.]+)`)
+
+func filterMasscanOutput(result string) string {
+	matches := masscanPortRegex.FindAllStringSubmatch(result, -1)
+	if len(matches) == 0 {
+		return result
+	}
+
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: masscan/rustscan — open ports extracted]\n\n")
+	sb.WriteString("| IP Address | Port | Protocol |\n")
+	sb.WriteString("|---|---|---|\n")
+
+	for _, m := range matches {
+		if len(m) >= 4 {
+			fmt.Fprintf(&sb, "| %s | %s | %s |\n", m[3], m[1], m[2])
+		}
+	}
+
+	fmt.Fprintf(&sb, "\n[%d open ports found across %d bytes]\n", len(matches), len(result))
 	return sb.String()
 }
 

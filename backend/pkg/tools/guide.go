@@ -70,7 +70,7 @@ func NewGuideTool(
 
 func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (string, error) {
 	if !g.IsAvailable() {
-		return "", fmt.Errorf("guide is not available")
+		return "", ToolCrash(fmt.Errorf("guide tool is not available: store not initialized"))
 	}
 
 	ctx, observation := obs.Observer.NewObservation(ctx)
@@ -81,7 +81,7 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 
 	if g.store == nil {
 		logger.Error("pgvector store is not initialized")
-		return "", fmt.Errorf("pgvector store is not initialized")
+		return "", ToolCrash(fmt.Errorf("pgvector store is not initialized"))
 	}
 
 	switch name {

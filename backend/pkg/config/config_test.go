@@ -233,7 +233,7 @@ func TestConfig_NewConfig_FillsDefaultsForAnEmptyEnvironment(t *testing.T) {
 	assert.Equal(t, false, config.ExecutionMonitorEnabled)
 	assert.Equal(t, 5, config.ExecutionMonitorSameToolLimit)
 	assert.Equal(t, 10, config.ExecutionMonitorTotalToolLimit)
-	assert.Equal(t, 100, config.MaxGeneralAgentToolCalls)
+	assert.Equal(t, 35, config.MaxGeneralAgentToolCalls)
 	assert.Equal(t, 20, config.MaxLimitedAgentToolCalls)
 	assert.Equal(t, false, config.AgentPlanningStepEnabled)
 }
