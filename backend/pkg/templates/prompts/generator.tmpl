@@ -174,12 +174,14 @@ Each subtask MUST:
      * Attempt credential harvesting, pivoting, and persistence mechanisms
      * Document the complete attack chain from entry to maximum impact
    - **Phase 6 – Reporting & Evidence Collection (~20%)**
-     * Compile all findings into a structured report with:
-       - Executive Summary (1-2 paragraphs for non-technical stakeholders)
-       - Risk Severity Matrix (Critical/High/Medium/Low/Info counts)
-       - MITRE ATT&CK mapping table for all findings
-       - Detailed finding cards: Title, CVSS Score, MITRE ID, Description, Proof of Concept, Remediation
-       - Appendix: Raw tool outputs and command logs
+     * CRITICAL: Split reporting into two distinct subtasks to prevent execution timeouts:
+       - **Subtask A (Findings Matrix Consolidation):** Consolidate all evidence, calculate CVSS 3.1 scores, map MITRE ATT&CK IDs, and produce machine-readable files (`FINDINGS_REGISTER.csv` and `findings_matrix.json`).
+       - **Subtask B (Executive & Technical Deliverable Assembly):** Read the pre-compiled matrix from Subtask A and assemble the comprehensive markdown deliverable:
+         * Executive Summary (1-2 paragraphs for non-technical stakeholders)
+         * Risk Severity Matrix (Critical/High/Medium/Low/Info counts)
+         * MITRE ATT&CK mapping table for all findings
+         * Detailed finding cards: Title, CVSS Score, MITRE ID, Description, Proof of Concept, Remediation
+         * Appendix: Raw tool outputs and command logs
      * Store reusable attack methodologies and guides in long-term memory
 
 ## TASK PLANNING STRATEGIES

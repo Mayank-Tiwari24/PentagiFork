@@ -377,6 +377,16 @@ func (t *terminal) getExecResult(ctx context.Context, id string, timeout time.Du
 		return "", ToolCrash(fmt.Errorf("terminal command crashed with segmentation fault (exit code 139): %s", truncateString(results, 500)))
 	}
 
+	if inspect.ExitCode == 134 {
+		return "", ToolCrash(fmt.Errorf("terminal command aborted (exit code 134): %s", truncateString(results, 500)))
+	}
+
+	if inspect.ExitCode == 143 {
+		return "", ToolCrash(fmt.Errorf("terminal command terminated by SIGTERM (exit code 143): %s", truncateString(results, 500)))
+	}
+
+	results = enrichWAFAndRateLimitAdvice(results)
+
 	return results, nil
 }
 
@@ -647,3 +657,35 @@ func truncateString(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "... [truncated full size is " + strconv.Itoa(len(s)) + " bytes]"
 }
+
+func enrichWAFAndRateLimitAdvice(result string) string {
+	lower := strings.ToLower(result)
+	var advisories []string
+
+	// Detect HTTP 429 Too Many Requests or generic rate limits
+	if strings.Contains(lower, "429 too many requests") ||
+		strings.Contains(lower, "status: 429") ||
+		strings.Contains(lower, "rate limit exceeded") ||
+		strings.Contains(lower, "too many requests") ||
+		strings.Contains(lower, "retry-after") {
+		advisories = append(advisories, "Rate limit (HTTP 429) detected. Reduce concurrency/threads (e.g. -rate 20 or -t 5), add inter-request delay (--delay 1s), or rotate client IP/User-Agent.")
+	}
+
+	// Detect Cloudflare WAF or challenge
+	if (strings.Contains(lower, "cf-ray") || strings.Contains(lower, "cloudflare")) &&
+		(strings.Contains(lower, "attention required") || strings.Contains(lower, "error 1020") || strings.Contains(lower, "access denied") || strings.Contains(lower, "just a moment...") || strings.Contains(lower, "403 forbidden")) {
+		advisories = append(advisories, "Cloudflare WAF / challenge page detected. Use --random-agent, look for origin IP bypass, and throttle scan velocity.")
+	} else if strings.Contains(lower, "mod_security") || strings.Contains(lower, "modsecurity") || strings.Contains(lower, "406 not acceptable") {
+		advisories = append(advisories, "ModSecurity WAF detected (406 Not Acceptable). Avoid aggressive signatures; encode payloads (URL/hex/base64) or use tamper scripts to avoid signature matching.")
+	} else if strings.Contains(lower, "aws-waf") || strings.Contains(lower, "awswaf") {
+		advisories = append(advisories, "AWS WAF block detected. Adjust request headers, payload framing, and connection velocity.")
+	} else if strings.Contains(lower, "incapsula") || strings.Contains(lower, "imperva") {
+		advisories = append(advisories, "Imperva/Incapsula WAF detected. Throttle request frequency and distribute probes.")
+	}
+
+	if len(advisories) > 0 {
+		return result + "\n\n[PENTAGI DEFENSE ADVISORY: Target defense triggered]\n- " + strings.Join(advisories, "\n- ")
+	}
+	return result
+}
+

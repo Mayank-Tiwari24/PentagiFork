@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"sync"
+	"time"
 
 	obs "pentagi/pkg/observability"
 	"pentagi/pkg/observability/langfuse"
@@ -12,25 +13,60 @@ import (
 	"github.com/vxcontrol/langchaingo/embeddings"
 )
 
+const defaultBreakerTTL = 5 * time.Minute
+
 type wrapper struct {
 	model    string
 	provider string
 	metadata langfuse.Metadata
 	embeddings.Embedder
 
-	// Circuit breaker: after the first embedding failure, all subsequent
-	// calls return immediately with the cached error instead of waiting
-	// for another multi-minute timeout. This prevents the cascading
-	// 14-minute downtime observed when the embedding provider is down.
-	breakerOnce sync.Once
-	breakerErr  error
-	broken      bool
+	// Circuit breaker: after an embedding failure, all subsequent calls
+	// return immediately with the cached error during the cooldown period
+	// instead of waiting for another multi-minute timeout.
+	// After defaultBreakerTTL, the circuit breaker half-opens to test if
+	// the provider has recovered.
+	breakerMu  sync.RWMutex
+	breakerErr error
+	broken     bool
+	brokenAt   time.Time
+}
+
+func (w *wrapper) isBreakerOpen() (bool, error) {
+	w.breakerMu.RLock()
+	defer w.breakerMu.RUnlock()
+
+	if !w.broken {
+		return false, nil
+	}
+
+	// Auto-recovery: if cooldown has passed, permit a probe call (half-open)
+	if time.Since(w.brokenAt) > defaultBreakerTTL {
+		return false, nil
+	}
+
+	return true, w.breakerErr
+}
+
+func (w *wrapper) tripBreaker(err error) {
+	w.breakerMu.Lock()
+	defer w.breakerMu.Unlock()
+	w.broken = true
+	w.brokenAt = time.Now()
+	w.breakerErr = err
+}
+
+func (w *wrapper) resetBreaker() {
+	w.breakerMu.Lock()
+	defer w.breakerMu.Unlock()
+	w.broken = false
+	w.breakerErr = nil
 }
 
 func (w *wrapper) EmbedDocuments(ctx context.Context, texts []string) ([][]float32, error) {
-	// Circuit breaker: if a previous call already failed, return immediately.
-	if w.broken {
-		return nil, fmt.Errorf("embedding circuit breaker open (provider unavailable): %w", w.breakerErr)
+	// Circuit breaker: if in cooldown, fail fast to avoid multi-minute hangs.
+	if open, cachedErr := w.isBreakerOpen(); open {
+		return nil, fmt.Errorf("embedding circuit breaker open (provider unavailable, auto-retry in cooldown): %w", cachedErr)
 	}
 
 	ctx, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "embeddings.EmbedDocuments")
@@ -59,18 +95,15 @@ func (w *wrapper) EmbedDocuments(ctx context.Context, texts []string) ([][]float
 	}
 
 	if err != nil {
-		// Trip the circuit breaker on the first failure so subsequent
-		// calls don't each wait for an 8-minute timeout.
-		w.breakerOnce.Do(func() {
-			w.breakerErr = err
-			w.broken = true
-		})
+		w.tripBreaker(err)
 
 		opts = append(opts,
 			langfuse.WithEmbeddingStatus(err.Error()),
 			langfuse.WithEmbeddingLevel(langfuse.ObservationLevelError),
 		)
 	} else {
+		w.resetBreaker()
+
 		opts = append(opts,
 			langfuse.WithEmbeddingStatus("success"),
 			langfuse.WithEmbeddingLevel(langfuse.ObservationLevelDebug),
@@ -87,9 +120,9 @@ func (w *wrapper) EmbedDocuments(ctx context.Context, texts []string) ([][]float
 }
 
 func (w *wrapper) EmbedQuery(ctx context.Context, text string) ([]float32, error) {
-	// Circuit breaker: if a previous call already failed, return immediately.
-	if w.broken {
-		return nil, fmt.Errorf("embedding circuit breaker open (provider unavailable): %w", w.breakerErr)
+	// Circuit breaker: if in cooldown, fail fast to avoid multi-minute hangs.
+	if open, cachedErr := w.isBreakerOpen(); open {
+		return nil, fmt.Errorf("embedding circuit breaker open (provider unavailable, auto-retry in cooldown): %w", cachedErr)
 	}
 
 	ctx, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "embeddings.EmbedQuery")
@@ -118,17 +151,15 @@ func (w *wrapper) EmbedQuery(ctx context.Context, text string) ([]float32, error
 	}
 
 	if err != nil {
-		// Trip the circuit breaker on query failures too.
-		w.breakerOnce.Do(func() {
-			w.breakerErr = err
-			w.broken = true
-		})
+		w.tripBreaker(err)
 
 		opts = append(opts,
 			langfuse.WithEmbeddingStatus(err.Error()),
 			langfuse.WithEmbeddingLevel(langfuse.ObservationLevelError),
 		)
 	} else {
+		w.resetBreaker()
+
 		opts = append(opts,
 			langfuse.WithEmbeddingStatus("success"),
 			langfuse.WithEmbeddingLevel(langfuse.ObservationLevelDebug),

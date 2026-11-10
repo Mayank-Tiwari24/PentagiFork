@@ -32,6 +32,16 @@ func preFilterTerminalResult(command, result string) string {
 		return filterDNSEnumOutput(result)
 	case isNucleiCommand(cmdLower):
 		return filterNucleiOutput(result)
+	case isDirBruteCommand(cmdLower):
+		return filterDirBruteOutput(result)
+	case isSQLMapCommand(cmdLower):
+		return filterSQLMapOutput(result)
+	case isHydraCommand(cmdLower):
+		return filterHydraOutput(result)
+	case isNiktoCommand(cmdLower):
+		return filterNiktoOutput(result)
+	case isWPScanCommand(cmdLower):
+		return filterWPScanOutput(result)
 	default:
 		return result // Unknown commands: never touch, preserve full output
 	}
@@ -63,6 +73,31 @@ func isDNSEnumCommand(cmd string) bool {
 
 func isNucleiCommand(cmd string) bool {
 	return strings.Contains(cmd, "nuclei")
+}
+
+func isDirBruteCommand(cmd string) bool {
+	return strings.Contains(cmd, "gobuster") ||
+		strings.Contains(cmd, "ffuf") ||
+		strings.Contains(cmd, "feroxbuster") ||
+		strings.Contains(cmd, "dirsearch")
+}
+
+func isSQLMapCommand(cmd string) bool {
+	return strings.Contains(cmd, "sqlmap")
+}
+
+func isHydraCommand(cmd string) bool {
+	return strings.Contains(cmd, "hydra") ||
+		strings.Contains(cmd, "medusa") ||
+		strings.Contains(cmd, "ncrack")
+}
+
+func isNiktoCommand(cmd string) bool {
+	return strings.Contains(cmd, "nikto")
+}
+
+func isWPScanCommand(cmd string) bool {
+	return strings.Contains(cmd, "wpscan")
 }
 
 // --- Filters ---
@@ -274,3 +309,215 @@ func filterNucleiOutput(result string) string {
 	fmt.Fprintf(&sb, "\n[%d findings extracted from %d bytes of output]\n", count, len(result))
 	return sb.String()
 }
+
+func filterDirBruteOutput(result string) string {
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: web path enumeration — discovered paths retained]\n\n")
+
+	statusIndicators := []string{
+		"Status: 200", "Status: 204", "Status: 301", "Status: 302", "Status: 307", "Status: 401", "Status: 403",
+		"200 OK", "301 Moved", "302 Found", "401 Unauthorized", "403 Forbidden",
+		" 200 ", " 301 ", " 302 ", " 401 ", " 403 ",
+	}
+
+	count := 0
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "Progress:") ||
+			strings.HasPrefix(trimmed, "::") ||
+			strings.Contains(trimmed, "Starting gobuster") ||
+			strings.Contains(trimmed, "Starting feroxbuster") {
+			continue
+		}
+
+		matched := false
+		if strings.HasPrefix(trimmed, "Found:") || strings.HasPrefix(trimmed, "-->") || strings.HasPrefix(trimmed, "[+]") {
+			matched = true
+		} else {
+			for _, indicator := range statusIndicators {
+				if strings.Contains(trimmed, indicator) {
+					matched = true
+					break
+				}
+			}
+		}
+
+		if matched {
+			sb.WriteString(trimmed)
+			sb.WriteByte('\n')
+			count++
+			if count >= 60 {
+				fmt.Fprintf(&sb, "\n... [truncated at 60 paths to preserve context window, %d total lines]\n", len(lines))
+				break
+			}
+		}
+	}
+
+	if count == 0 {
+		return result
+	}
+
+	fmt.Fprintf(&sb, "\n[%d paths extracted from %d bytes of output]\n", count, len(result))
+	return sb.String()
+}
+
+func filterSQLMapOutput(result string) string {
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: sqlmap — vulnerability and parameter findings retained]\n\n")
+
+	keyIndicators := []string{
+		"is vulnerable",
+		"might be injectable",
+		"back-end DBMS",
+		"web server operating system",
+		"web application technology",
+		"available databases",
+		"Database:",
+		"Table:",
+		"fetched data:",
+		"[CRITICAL]",
+		"[WARNING]",
+		"[+]",
+		"[*]",
+		"[!]",
+	}
+
+	count := 0
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.Contains(trimmed, "[INFO] testing ") ||
+			strings.Contains(trimmed, "[INFO] resumed: ") ||
+			strings.Contains(trimmed, "[PAYLOAD] ") {
+			continue
+		}
+
+		matched := false
+		lower := strings.ToLower(trimmed)
+		for _, indicator := range keyIndicators {
+			if strings.Contains(lower, strings.ToLower(indicator)) {
+				matched = true
+				break
+			}
+		}
+
+		if matched {
+			sb.WriteString(trimmed)
+			sb.WriteByte('\n')
+			count++
+		}
+	}
+
+	if count == 0 {
+		return result
+	}
+
+	fmt.Fprintf(&sb, "\n[%d key lines extracted from %d bytes of output]\n", count, len(result))
+	return sb.String()
+}
+
+func filterHydraOutput(result string) string {
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: credential check — valid logins and summary retained]\n\n")
+
+	count := 0
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "[ATTEMPT]") {
+			continue
+		}
+
+		isKeyLine := strings.Contains(trimmed, "login:") ||
+			strings.Contains(trimmed, "password:") ||
+			strings.Contains(trimmed, "host:") ||
+			strings.Contains(trimmed, "valid password found") ||
+			strings.HasPrefix(trimmed, "[DATA]") ||
+			strings.HasPrefix(trimmed, "[STATUS]") ||
+			strings.HasPrefix(trimmed, "[ERROR]") ||
+			strings.HasPrefix(trimmed, "[+]")
+
+		if isKeyLine {
+			sb.WriteString(trimmed)
+			sb.WriteByte('\n')
+			count++
+		}
+	}
+
+	if count == 0 {
+		return result
+	}
+
+	fmt.Fprintf(&sb, "\n[%d result lines extracted from %d bytes of output]\n", count, len(result))
+	return sb.String()
+}
+
+func filterNiktoOutput(result string) string {
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: nikto — findings retained]\n\n")
+
+	count := 0
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "+") {
+			sb.WriteString(trimmed)
+			sb.WriteByte('\n')
+			count++
+		}
+	}
+
+	if count == 0 {
+		return result
+	}
+
+	fmt.Fprintf(&sb, "\n[%d finding lines extracted from %d bytes of output]\n", count, len(result))
+	return sb.String()
+}
+
+func filterWPScanOutput(result string) string {
+	var sb strings.Builder
+	sb.WriteString("[pre-filtered: wpscan — security findings retained]\n\n")
+
+	count := 0
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "[+]") ||
+			strings.HasPrefix(trimmed, "[!]") ||
+			strings.HasPrefix(trimmed, "[i]") {
+			sb.WriteString(trimmed)
+			sb.WriteByte('\n')
+			count++
+		}
+	}
+
+	if count == 0 {
+		return result
+	}
+
+	fmt.Fprintf(&sb, "\n[%d finding lines extracted from %d bytes of output]\n", count, len(result))
+	return sb.String()
+}
+
