@@ -1,0 +1,70 @@
+# Smart Hybrid OpenRouter Provider Configuration
+# Strategy:
+# - Gemini Flash / DeepSeek for routine search, reflection, and data parsing (Fast & Fractions of a cent)
+# - Claude 3.5 Sonnet for critical attack execution, exploit coding, and strategic advice (World-Class Reasoning)
+
+simple:
+  model: "google/gemini-2.5-flash"
+  n: 1
+  max_tokens: 8192
+
+simple_json:
+  model: "google/gemini-2.5-flash"
+  n: 1
+  max_tokens: 4096
+  json: true
+
+searcher:
+  model: "google/gemini-2.5-flash"
+  n: 1
+  max_tokens: 8192
+
+enricher:
+  model: "google/gemini-2.5-flash"
+  n: 1
+  max_tokens: 8192
+
+reflector:
+  model: "google/gemini-2.5-flash"
+  n: 1
+  max_tokens: 8192
+
+installer:
+  model: "google/gemini-2.5-flash"
+  n: 1
+  max_tokens: 16384
+
+primary_agent:
+  model: "anthropic/claude-3.5-sonnet"
+  n: 1
+  max_tokens: 16384
+
+assistant:
+  model: "google/gemini-2.5-flash"
+  n: 1
+  max_tokens: 16384
+
+generator:
+  model: "anthropic/claude-3.5-sonnet"
+  n: 1
+  max_tokens: 32768
+
+refiner:
+  model: "anthropic/claude-3.5-sonnet"
+  n: 1
+  max_tokens: 20480
+
+adviser:
+  model: "anthropic/claude-3.5-sonnet"
+  n: 1
+  max_tokens: 16384
+
+coder:
+  model: "anthropic/claude-3.5-sonnet"
+  n: 1
+  max_tokens: 20480
+
+pentester:
+  model: "anthropic/claude-3.5-sonnet"
+  n: 1
+  max_tokens: 16384

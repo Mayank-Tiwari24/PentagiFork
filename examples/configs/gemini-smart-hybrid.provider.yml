@@ -1,0 +1,110 @@
+# Smart Hybrid Gemini Provider Configuration
+# Strategy:
+# - Gemini Flash for routine utility, search, reflection, and data parsing (Fast & Free/Cheap)
+# - Gemini Pro for critical attack execution, custom exploit development, and strategic mentoring (Deep Reasoning)
+
+simple:
+  model: "gemini-2.5-flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+
+simple_json:
+  model: "gemini-2.5-flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 4096
+  json: true
+
+searcher:
+  model: "gemini-2.5-flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+
+enricher:
+  model: "gemini-2.5-flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+
+reflector:
+  model: "gemini-2.5-flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+
+installer:
+  model: "gemini-2.5-flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+
+primary_agent:
+  model: "gemini-2.5-pro"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+
+assistant:
+  model: "gemini-2.5-flash"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: medium
+
+generator:
+  model: "gemini-2.5-pro"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 32768
+  reasoning:
+    effort: high
+
+refiner:
+  model: "gemini-2.5-pro"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 20480
+  reasoning:
+    effort: high
+
+adviser:
+  model: "gemini-2.5-pro"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+
+coder:
+  model: "gemini-2.5-pro"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 20480
+  reasoning:
+    effort: high
+
+pentester:
+  model: "gemini-2.5-pro"
+  temperature: 1.0
+  top_p: 0.95
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
