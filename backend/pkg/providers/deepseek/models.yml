@@ -21,3 +21,25 @@
     input: 1.32
     output: 3.96
     cache_read: 0.044
+
+- name: deepseek-chat
+  description: DeepSeek-V3 (Chat) - High-speed, low-cost general model ideal for OSINT, search, tool execution, and data parsing without reasoning overhead.
+  thinking: false
+  context_window: 65536
+  max_output_tokens: 8192
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+- name: deepseek-reasoner
+  description: DeepSeek-R1 (Reasoner) - Flagship reasoning model with full chain-of-thought capability. Outstanding for complex vulnerability analysis, WAF evasion, exploit code generation, and strategic attack planning.
+  thinking: true
+  reasoning:
+    efforts: [high]
+  context_window: 65536
+  max_output_tokens: 32768
+  price:
+    input: 0.55
+    output: 2.19
+    cache_read: 0.14

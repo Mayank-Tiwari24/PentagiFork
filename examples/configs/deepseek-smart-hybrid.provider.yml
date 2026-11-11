@@ -1,0 +1,138 @@
+# DeepSeek Smart Hybrid Provider Configuration (V3 for Recon/Utility + R1 for Exploitation/Coding)
+#
+# Strategy:
+# - deepseek-chat (V3): Fast, low-cost utility calls, OSINT searching, data parsing, tool argument fixing.
+# - deepseek-reasoner (R1): Full reasoning model with thinking chain for active exploitation, WAF evasion,
+#   exploit generation, and strategic attack guidance.
+
+simple:
+  model: "deepseek-chat"
+  temperature: 0.3
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+simple_json:
+  model: "deepseek-chat"
+  temperature: 0.3
+  top_p: 0.9
+  n: 1
+  max_tokens: 4096
+  json: true
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+searcher:
+  model: "deepseek-chat"
+  temperature: 0.5
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+enricher:
+  model: "deepseek-chat"
+  temperature: 0.5
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+reflector:
+  model: "deepseek-chat"
+  temperature: 0.5
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+installer:
+  model: "deepseek-chat"
+  temperature: 0.3
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+primary_agent:
+  model: "deepseek-reasoner"
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.55
+    output: 2.19
+    cache_read: 0.14
+
+assistant:
+  model: "deepseek-chat"
+  temperature: 0.7
+  top_p: 0.95
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.27
+    output: 1.10
+    cache_read: 0.07
+
+generator:
+  model: "deepseek-reasoner"
+  n: 1
+  max_tokens: 32768
+  price:
+    input: 0.55
+    output: 2.19
+    cache_read: 0.14
+
+refiner:
+  model: "deepseek-reasoner"
+  n: 1
+  max_tokens: 32768
+  price:
+    input: 0.55
+    output: 2.19
+    cache_read: 0.14
+
+adviser:
+  model: "deepseek-reasoner"
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.55
+    output: 2.19
+    cache_read: 0.14
+
+coder:
+  model: "deepseek-reasoner"
+  n: 1
+  max_tokens: 20480
+  price:
+    input: 0.55
+    output: 2.19
+    cache_read: 0.14
+
+pentester:
+  model: "deepseek-reasoner"
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.55
+    output: 2.19
+    cache_read: 0.14

@@ -108,3 +108,4 @@ pentester:
   max_tokens: 16384
   reasoning:
     effort: high
+
