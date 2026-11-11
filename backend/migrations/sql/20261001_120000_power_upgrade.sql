@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 -- Migration: Add parallel execution groups, ATT&CK mapping, and plugin support
 
 -- ============================================================================
@@ -224,9 +225,10 @@ BEGIN
         GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO pentagi_app;
     END IF;
 END $$;
-
+-- +goose StatementEnd
 
 -- +goose Down
+-- +goose StatementBegin
 
 DROP TRIGGER IF EXISTS audit_log_immutable ON audit_logs;
 DROP FUNCTION IF EXISTS prevent_audit_log_modification();
@@ -237,3 +239,4 @@ DROP TABLE IF EXISTS attack_patterns;
 DROP TABLE IF EXISTS attack_mappings;
 ALTER TABLE subtasks DROP COLUMN IF EXISTS depends_on;
 ALTER TABLE subtasks DROP COLUMN IF EXISTS group_index;
+-- +goose StatementEnd

@@ -19,3 +19,9 @@ frontend/ssl
 backend/ctester
 backend/etester
 backend/ftester
+
+.git
+*.zip
+diffs/
+reports/
+frontend/package/

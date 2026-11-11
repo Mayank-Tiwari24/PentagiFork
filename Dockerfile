@@ -32,7 +32,7 @@ COPY frontend/ .
 
 # Install dependencies
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --fetch-timeout 300000 --fetch-retries 5
 
 # Generate license report for frontend dependencies
 RUN pnpm add -g license-checker && \

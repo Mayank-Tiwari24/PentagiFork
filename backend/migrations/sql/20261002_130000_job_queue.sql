@@ -14,3 +14,9 @@ CREATE TABLE IF NOT EXISTS pentagi_jobs (
 );
 
 CREATE INDEX idx_jobs_status_priority ON pentagi_jobs(status, priority DESC, created_at ASC);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS pentagi_jobs;
+-- +goose StatementEnd
